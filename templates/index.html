@@ -1,230 +1,84 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neil - AI 助手</title>
+    <title>Deepseek Chat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- 添加一个favicon -->
-    <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css">
 </head>
 <body>
-    <!-- 侧边栏 -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <div class="logo">
-                <div class="logo-icon">N</div>
-                <span>Neil</span>
-            </div>
-            <button class="mobile-close-btn" id="close-sidebar">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-        </div>
-
-        <button class="new-chat-btn" id="new-chat-btn">
-            <svg class="icon icon-sm" viewBox="0 0 24 24">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            新对话
-        </button>
-
-        <div class="conversations" id="conversations-list">
-            <!-- 对话列表将通过JavaScript动态加载 -->
-            <div class="loading-indicator">
-                <div class="loading-spinner"></div>
-                <span>加载对话...</span>
-            </div>
-        </div>
-
-        <div class="sidebar-footer">
-            <div class="user">
-                <div class="avatar">U</div>
-                <div class="user-info">
-                    <div class="user-name">用户</div>
-                    <div class="user-plan">Free</div>
-                </div>
-            </div>
-            <button class="settings-btn" id="settings-btn">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
-            </button>
-        </div>
-    </aside>
-
-    <!-- 主内容区域 -->
-    <main class="main">
-        <div class="chat-header">
-            <button class="mobile-menu-btn" id="mobile-menu-btn">
-                <svg class="icon" viewBox="0 0 24 24">
-                    <line x1="3" y1="12" x2="21" y2="12"></line>
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <line x1="3" y1="18" x2="21" y2="18"></line>
-                </svg>
-            </button>
-            <h1 class="chat-title" id="chat-title">新对话</h1>
-            <div class="header-actions">
-                <button class="action-btn" id="refresh-btn" title="刷新对话">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <polyline points="1 4 1 10 7 10"></polyline>
-                        <polyline points="23 20 23 14 17 14"></polyline>
-                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
-                    </svg>
-                </button>
-                <button class="action-btn" id="delete-btn" title="删除对话">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                    </svg>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <button id="new-chat-btn" class="new-chat-btn">
+                    <i class="fas fa-plus"></i> New Chat
                 </button>
             </div>
-        </div>
-
-        <div class="chat-container" id="chat-container">
-            <div class="welcome-container" id="welcome-container">
-                <div class="welcome-logo">Neil</div>
-                <h2 class="welcome-title">您的AI助手</h2>
-                <p class="welcome-subtitle">我是Neil，一款强大的AI助手，基于DeepSeek API开发。可以回答问题、提供信息、创作内容，帮助您完成各种任务。</p>
-                
-                <div class="example-prompts" id="example-prompts">
-                    <div class="example-prompt">
-                        <div class="example-prompt-title">解释复杂概念</div>
-                        <div class="example-prompt-text">能用简单的语言解释量子物理吗？</div>
-                    </div>
-                    <div class="example-prompt">
-                        <div class="example-prompt-title">创作内容</div>
-                        <div class="example-prompt-text">写一篇关于可持续发展的短文</div>
-                    </div>
-                    <div class="example-prompt">
-                        <div class="example-prompt-title">编程帮助</div>
-                        <div class="example-prompt-text">如何用Python创建一个简单的网络爬虫？</div>
-                    </div>
-                    <div class="example-prompt">
-                        <div class="example-prompt-title">学习建议</div>
-                        <div class="example-prompt-text">推荐一些学习人工智能的资源</div>
-                    </div>
+            <div class="sidebar-content">
+                <div class="chat-history" id="chat-history">
+                    <!-- Chat history will be dynamically populated -->
                 </div>
             </div>
-
-            <!-- 聊天消息容器 -->
-            <div class="messages" id="messages"></div>
-            
-            <!-- "正在思考"指示器 -->
-            <div class="thinking" id="thinking" style="display: none;">
-                <div class="thinking-dot"></div>
-                <div class="thinking-dot"></div>
-                <div class="thinking-dot"></div>
-                <span>Neil正在思考...</span>
-            </div>
-        </div>
-
-        <!-- 输入区域 -->
-        <div class="chat-input-container">
-            <div class="chat-input-wrapper">
-                <textarea 
-                    id="chat-input" 
-                    class="chat-input" 
-                    placeholder="发送消息给Neil..." 
-                    rows="1"
-                ></textarea>
-                <button id="send-btn" class="send-btn" disabled>
-                    <svg class="icon icon-sm" viewBox="0 0 24 24">
-                        <line x1="22" y1="2" x2="11" y2="13"></line>
-                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                    </svg>
+            <div class="sidebar-footer">
+                <button id="settings-btn" class="settings-btn">
+                    <i class="fas fa-cog"></i> Settings
                 </button>
             </div>
-            <div class="input-features">
-                <div class="feature-buttons">
-                    <button class="feature-btn" title="上传文件" id="upload-btn">
-                        <svg class="icon icon-sm" viewBox="0 0 24 24">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
-                    </button>
-                    <button class="feature-btn" title="麦克风" id="mic-btn">
-                        <svg class="icon icon-sm" viewBox="0 0 24 24">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                            <line x1="12" y1="19" x2="12" y2="23"></line>
-                            <line x1="8" y1="23" x2="16" y2="23"></line>
-                        </svg>
-                    </button>
+        </aside>
+
+        <main class="main-content">
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="welcome-message">
+                        <h1>Neil Chat</h1>
+                        <p>Welcome to Neil Chat! Ask me anything and I'll do my best to help.</p>
+                    </div>
+                    <!-- Chat messages will be dynamically populated -->
                 </div>
-                <div class="model-selector" id="model-selector">
-                    <span>DeepSeek</span>
-                    <svg class="icon icon-xs" viewBox="0 0 24 24">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
+                <div class="chat-input-container">
+                    <div class="chat-input-wrapper">
+                        <textarea id="chat-input" placeholder="Type your message here..." rows="1"></textarea>
+                        <button id="send-btn" class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                    <div class="input-footer">
+                        <span class="disclaimer">Neil Chat may produce inaccurate information about people, places, facts, etc.</span>
+                    </div>
                 </div>
             </div>
-        </div>
-    </main>
+        </main>
+    </div>
 
-    <!-- 设置对话框 -->
-    <div class="modal" id="settings-modal">
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>设置</h3>
-                <button class="close-modal-btn" id="close-settings-modal">
-                    <svg class="icon" viewBox="0 0 24 24">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
+                <h2>Settings</h2>
+                <span class="close">&times;</span>
             </div>
             <div class="modal-body">
                 <div class="settings-section">
-                    <h4>界面设置</h4>
-                    <div class="setting-item">
-                        <span>深色模式</span>
-                        <label class="switch">
-                            <input type="checkbox" id="dark-mode-toggle">
-                            <span class="slider round"></span>
-                        </label>
-                    </div>
-                    <div class="setting-item">
-                        <span>界面字体大小</span>
-                        <select id="font-size-selector">
-                            <option value="small">小</option>
-                            <option value="medium" selected>中</option>
-                            <option value="large">大</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="settings-section">
-                    <h4>模型设置</h4>
-                    <div class="setting-item">
-                        <span>默认模型</span>
-                        <select id="default-model-selector">
-                            <option value="deepseek-chat" selected>DeepSeek Chat</option>
-                            <option value="deepseek-coder">DeepSeek Coder</option>
-                        </select>
-                    </div>
-                    <div class="setting-item">
-                        <span>温度 (创造性)</span>
-                        <input type="range" min="0" max="10" value="7" id="temperature-slider">
-                        <span id="temperature-value">0.7</span>
-                    </div>
+                    <h3>System Message</h3>
+                    <p>Customize the behavior of the AI assistant by modifying the system message.</p>
+                    <textarea id="system-message" rows="6" placeholder="Enter system message here...">You are a helpful assistant created by Deepseek.</textarea>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="secondary-btn" id="reset-settings-btn">恢复默认</button>
-                <button class="primary-btn" id="save-settings-btn">保存设置</button>
+                <button id="save-settings" class="save-btn">Save Settings</button>
             </div>
         </div>
     </div>
 
-    <!-- 加载脚本 -->
-    <script src="{{ url_for('static', filename='js/marked.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/highlight.min.js') }}"></script>
+    <!-- Loading indicator -->
+    <div id="loading-indicator" class="loading-indicator hidden">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.2.5/marked.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

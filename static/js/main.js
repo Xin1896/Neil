@@ -1,371 +1,395 @@
-// static/js/main.js
+// Wait for the DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', function() {
-    // 全局变量
-    let currentConversationId = null;
+    console.log('DOM fully loaded and parsed');
     
-    // DOM元素
+    // DOM Elements
+    const chatMessages = document.getElementById('chat-messages');
     const chatInput = document.getElementById('chat-input');
-    const sendButton = document.getElementById('send-btn');
-    const messagesContainer = document.getElementById('messages');
-    const welcomeContainer = document.getElementById('welcome-container');
-    const thinking = document.getElementById('thinking');
-    const chatTitle = document.getElementById('chat-title');
-    const conversationsList = document.getElementById('conversations-list');
+    const sendBtn = document.getElementById('send-btn');
     const newChatBtn = document.getElementById('new-chat-btn');
-    const refreshBtn = document.getElementById('refresh-btn');
-    const deleteBtn = document.getElementById('delete-btn');
-    const examplePrompts = document.getElementById('example-prompts');
-    
-    // 移动端菜单
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    const sidebar = document.getElementById('sidebar');
-    const closeSidebarBtn = document.getElementById('close-sidebar');
-    
-    // 设置对话框
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
-    const closeSettingsModal = document.getElementById('close-settings-modal');
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
-    
-    // 初始化
-    loadConversations();
-    setupEventListeners();
-    loadSettings();
-    
-    // 设置事件监听器
-    function setupEventListeners() {
-        // 输入框事件
-        chatInput.addEventListener('input', function() {
-            sendButton.disabled = chatInput.value.trim() === '';
-            
-            // 自动调整高度
-            chatInput.style.height = 'auto';
-            chatInput.style.height = (chatInput.scrollHeight) + 'px';
-        });
-        
-        // 发送消息
-        sendButton.addEventListener('click', sendMessage);
-        chatInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                if (!sendButton.disabled) {
-                    sendMessage();
+    const closeModal = document.querySelector('.close');
+    const saveSettingsBtn = document.getElementById('save-settings');
+    const systemMessageInput = document.getElementById('system-message');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const chatHistory = document.getElementById('chat-history');
+
+    // Debug element references
+    console.log('Send button:', sendBtn);
+    console.log('New chat button:', newChatBtn);
+    console.log('Settings button:', settingsBtn);
+
+    // Initial load of chat history
+    loadChatHistory();
+
+    // Function to load chat history
+    function loadChatHistory() {
+        console.log('Loading chat history...');
+        fetch('/api/get_history')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Chat history loaded:', data);
+                // Clear current messages
+                chatMessages.innerHTML = '';
+                
+                // Show welcome message if no messages
+                if (data.messages.length === 0) {
+                    const welcomeDiv = document.createElement('div');
+                    welcomeDiv.className = 'welcome-message';
+                    welcomeDiv.innerHTML = `
+                        <h1>Deepseek Chat</h1>
+                        <p>Welcome to Deepseek Chat! Ask me anything and I'll do my best to help.</p>
+                    `;
+                    chatMessages.appendChild(welcomeDiv);
+                } else {
+                    // Display messages
+                    data.messages.forEach(msg => {
+                        addMessage(msg.role, msg.content);
+                    });
+                    
+                    // Scroll to bottom
+                    scrollToBottom();
                 }
-            }
-        });
-        
-        // 示例提示点击
-        if (examplePrompts) {
-            const promptElements = examplePrompts.querySelectorAll('.example-prompt');
-            promptElements.forEach(element => {
-                element.addEventListener('click', function() {
-                    const promptText = this.querySelector('.example-prompt-text').textContent;
-                    chatInput.value = promptText;
-                    chatInput.dispatchEvent(new Event('input'));
-                    chatInput.focus();
-                });
+            })
+            .catch(error => {
+                console.error('Error loading chat history:', error);
             });
-        }
-        
-        // 新对话按钮
-        newChatBtn.addEventListener('click', startNewConversation);
-        
-        // 移动端菜单
-        mobileMenuBtn.addEventListener('click', function() {
-            sidebar.classList.add('open');
-        });
-        
-        closeSidebarBtn.addEventListener('click', function() {
-            sidebar.classList.remove('open');
-        });
-        
-        // 设置对话框
-        settingsBtn.addEventListener('click', function() {
-            settingsModal.classList.add('open');
-        });
-        
-        closeSettingsModal.addEventListener('click', function() {
-            settingsModal.classList.remove('open');
-        });
-        
-        saveSettingsBtn.addEventListener('click', saveSettings);
-        
-        // 深色模式切换
-        darkModeToggle.addEventListener('change', function() {
-            document.documentElement.setAttribute('data-theme', this.checked ? 'dark' : 'light');
-            localStorage.setItem('darkMode', this.checked);
-        });
-        
-        // 删除对话
-        deleteBtn.addEventListener('click', function() {
-            if (currentConversationId) {
-                if (confirm('确定要删除这个对话吗？')) {
-                    deleteConversation(currentConversationId);
-                }
-            }
-        });
-        
-        // 刷新对话
-        refreshBtn.addEventListener('click', function() {
-            if (currentConversationId) {
-                loadConversation(currentConversationId);
-            }
-        });
     }
-    
-    // 发送消息
-    function sendMessage() {
-        const message = chatInput.value.trim();
-        if (!message) return;
-        
-        // 隐藏欢迎界面
-        welcomeContainer.style.display = 'none';
-        messagesContainer.style.display = 'flex';
-        
-        // 添加用户消息到界面
-        appendMessage('user', message);
-        
-        // 清空输入框
-        chatInput.value = '';
-        chatInput.style.height = 'auto';
-        sendButton.disabled = true;
-        
-        // 显示思考状态
-        thinking.style.display = 'flex';
-        scrollToBottom();
-        
-        // 发送到服务器
-        fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                message: message,
-                conversation_id: currentConversationId
-            }),
-        })
-        .then(response => response.json())
-        .then(data => {
-            // 隐藏思考状态
-            thinking.style.display = 'none';
-            
-            // 更新当前对话ID
-            if (data.id && !currentConversationId) {
-                currentConversationId = data.id;
-                chatTitle.textContent = data.title || '新对话';
-                loadConversations(); // 刷新侧边栏
-            }
-            
-            // 添加AI回复
-            appendMessage('assistant', data.message);
-            scrollToBottom();
-        })
-        .catch(error => {
-            thinking.style.display = 'none';
-            console.error('Error:', error);
-            appendMessage('assistant', '很抱歉，发生了错误。请重试。');
-            scrollToBottom();
-        });
-    }
-    
-    // 添加消息到界面
-    function appendMessage(role, content) {
+
+    // Function to add a message to the chat
+    function addMessage(role, content) {
+        console.log('Adding message:', role, content);
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'message';
-        
-        const avatarDiv = document.createElement('div');
-        avatarDiv.className = `message-avatar ${role}`;
-        avatarDiv.textContent = role === 'user' ? 'U' : 'N';
-        
+        messageDiv.className = `message ${role}-message`;
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'message-header';
+        headerDiv.textContent = role === 'user' ? 'You' : 'Deepseek';
+
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
         
-        const authorDiv = document.createElement('div');
-        authorDiv.className = 'message-author';
-        authorDiv.textContent = role === 'user' ? '您' : 'Neil';
-        
-        const textDiv = document.createElement('div');
-        textDiv.className = 'message-text';
-        
-        // 使用marked.js处理Markdown
-        if (role === 'assistant' && window.marked) {
-            textDiv.innerHTML = marked.parse(content);
+        // If assistant message, render as markdown
+        if (role === 'assistant') {
+            // Configure marked to use highlight.js for code highlighting
+            marked.setOptions({
+                highlight: function(code, language) {
+                    if (language && hljs.getLanguage(language)) {
+                        return hljs.highlight(code, { language }).value;
+                    }
+                    return hljs.highlightAuto(code).value;
+                },
+                breaks: true,
+                gfm: true
+            });
             
-            // 代码高亮
-            if (window.hljs) {
-                textDiv.querySelectorAll('pre code').forEach(block => {
-                    hljs.highlightBlock(block);
-                });
-            }
+            contentDiv.innerHTML = marked.parse(content);
+            
+            // Apply syntax highlighting to all code blocks
+            contentDiv.querySelectorAll('pre code').forEach(block => {
+                hljs.highlightElement(block);
+            });
         } else {
-            textDiv.textContent = content;
+            // For user messages, just display the text
+            contentDiv.textContent = content;
         }
-        
-        contentDiv.appendChild(authorDiv);
-        contentDiv.appendChild(textDiv);
-        
-        messageDiv.appendChild(avatarDiv);
+
+        messageDiv.appendChild(headerDiv);
         messageDiv.appendChild(contentDiv);
         
-        messagesContainer.appendChild(messageDiv);
-    }
-    
-    // 滚动到底部
-    function scrollToBottom() {
-        const chatContainer = document.getElementById('chat-container');
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-    
-    // 加载对话列表
-    function loadConversations() {
-        fetch('/api/conversations')
-            .then(response => response.json())
-            .then(data => {
-                // 清空列表
-                conversationsList.innerHTML = '';
-                
-                if (data.length === 0) {
-                    const emptyState = document.createElement('div');
-                    emptyState.className = 'empty-conversations';
-                    emptyState.innerHTML = '<p>暂无对话历史</p>';
-                    conversationsList.appendChild(emptyState);
-                    return;
-                }
-                
-                // 添加每个对话
-                data.forEach(conversation => {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'conversation-item';
-                    if (conversation.id === currentConversationId) {
-                        itemDiv.classList.add('active');
-                    }
-                    
-                    itemDiv.innerHTML = `
-                        <svg class="chat-icon" viewBox="0 0 24 24">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                        <span class="conversation-title">${conversation.title}</span>
-                        <span class="conversation-time">${formatDate(conversation.timestamp)}</span>
-                    `;
-                    
-                    itemDiv.addEventListener('click', function() {
-                        loadConversation(conversation.id);
-                    });
-                    
-                    conversationsList.appendChild(itemDiv);
-                });
-            })
-            .catch(error => {
-                console.error('Error loading conversations:', error);
-                conversationsList.innerHTML = '<div class="error-state">加载失败</div>';
-            });
-    }
-    
-    // 加载特定对话
-    function loadConversation(conversationId) {
-        fetch(`/api/conversations/${conversationId}`)
-            .then(response => response.json())
-            .then(data => {
-                currentConversationId = conversationId;
-                welcomeContainer.style.display = 'none';
-                messagesContainer.style.display = 'flex';
-                messagesContainer.innerHTML = '';
-                
-                chatTitle.textContent = data.title || '新对话';
-                
-                // 添加所有消息
-                data.messages.forEach(message => {
-                    appendMessage(message.role, message.content);
-                });
-                
-                // 更新侧边栏选中状态
-                document.querySelectorAll('.conversation-item').forEach(item => {
-                    item.classList.remove('active');
-                });
-                
-                document.querySelectorAll('.conversation-item').forEach(item => {
-                    const title = item.querySelector('.conversation-title').textContent;
-                    if (title === data.title) {
-                        item.classList.add('active');
-                    }
-                });
-                
-                scrollToBottom();
-            })
-            .catch(error => {
-                console.error('Error loading conversation:', error);
-            });
-    }
-    
-    // 开始新对话
-    function startNewConversation() {
-        currentConversationId = null;
-        chatTitle.textContent = '新对话';
-        welcomeContainer.style.display = 'flex';
-        messagesContainer.style.display = 'none';
-        messagesContainer.innerHTML = '';
+        // Remove welcome message if present
+        const welcomeMessage = chatMessages.querySelector('.welcome-message');
+        if (welcomeMessage) {
+            chatMessages.removeChild(welcomeMessage);
+        }
         
-        // 更新侧边栏选中状态
-        document.querySelectorAll('.conversation-item').forEach(item => {
-            item.classList.remove('active');
+        chatMessages.appendChild(messageDiv);
+        scrollToBottom();
+    }
+
+    // Function to scroll chat to bottom
+    function scrollToBottom() {
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Function to send a message
+    function sendMessage() {
+        console.log('Send button clicked');
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        // Add user message to chat
+        addMessage('user', message);
+        
+        // Clear input
+        chatInput.value = '';
+        chatInput.style.height = 'auto';
+        
+        // Show loading indicator
+        loadingIndicator.classList.remove('hidden');
+        
+        // Send message to server
+        fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Response received:', data);
+            // Hide loading indicator
+            loadingIndicator.classList.add('hidden');
+            
+            // Add assistant response to chat
+            addMessage('assistant', data.response);
+            
+            // Update chat history in sidebar
+            updateChatHistorySidebar(message);
+        })
+        .catch(error => {
+            // Hide loading indicator
+            loadingIndicator.classList.add('hidden');
+            
+            console.error('Error sending message:', error);
+            addMessage('assistant', 'Sorry, there was an error processing your request. Please try again.');
         });
     }
-    
-    // 删除对话
-    function deleteConversation(conversationId) {
-        fetch(`/api/conversations/${conversationId}`, {
-            method: 'DELETE'
+
+    // Function to update chat history in sidebar
+    function updateChatHistorySidebar(message) {
+        console.log('Updating chat history sidebar with:', message);
+        // This is a simplified version - in a real app you'd want to maintain
+        // proper chat sessions with IDs, timestamps, etc.
+        const historyItem = document.createElement('div');
+        historyItem.className = 'chat-history-item';
+        // Truncate long messages
+        historyItem.textContent = message.length > 30 ? message.substring(0, 30) + '...' : message;
+        
+        // Add to the top of history
+        if (chatHistory.firstChild) {
+            chatHistory.insertBefore(historyItem, chatHistory.firstChild);
+        } else {
+            chatHistory.appendChild(historyItem);
+        }
+    }
+
+    // Function to start a new chat
+    function startNewChat() {
+        console.log('New chat button clicked');
+        fetch('/api/new_chat', {
+            method: 'POST'
         })
         .then(response => response.json())
         .then(data => {
+            console.log('New chat response:', data);
             if (data.success) {
-                startNewConversation();
-                loadConversations();
-            } else {
-                alert('删除失败: ' + (data.error || '未知错误'));
+                // Clear current messages
+                chatMessages.innerHTML = '';
+                
+                // Add welcome message
+                const welcomeDiv = document.createElement('div');
+                welcomeDiv.className = 'welcome-message';
+                welcomeDiv.innerHTML = `
+                    <h1>Deepseek Chat</h1>
+                    <p>Welcome to Deepseek Chat! Ask me anything and I'll do my best to help.</p>
+                `;
+                chatMessages.appendChild(welcomeDiv);
             }
         })
         .catch(error => {
-            console.error('Error deleting conversation:', error);
-            alert('删除失败，请重试');
+            console.error('Error starting new chat:', error);
+        });
+    }
+
+    // Function to update system message
+    function updateSystemMessage() {
+        console.log('Save settings button clicked');
+        const newSystemMessage = systemMessageInput.value.trim();
+        if (!newSystemMessage) return;
+
+        // Show loading indicator
+        loadingIndicator.classList.remove('hidden');
+        
+        fetch('/api/update_system_message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ system_message: newSystemMessage })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Update system message response:', data);
+            // Hide loading indicator
+            loadingIndicator.classList.add('hidden');
+            
+            if (data.success) {
+                // Close modal
+                settingsModal.style.display = 'none';
+                
+                // Show confirmation message
+                const confirmDiv = document.createElement('div');
+                confirmDiv.className = 'message assistant-message';
+                confirmDiv.innerHTML = '<div class="message-header">System</div><div class="message-content">System message updated successfully! Your changes will take effect in the current and future conversations.</div>';
+                
+                chatMessages.appendChild(confirmDiv);
+                scrollToBottom();
+            }
+        })
+        .catch(error => {
+            // Hide loading indicator
+            loadingIndicator.classList.add('hidden');
+            
+            console.error('Error updating system message:', error);
+            
+            // Show error message
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'message assistant-message';
+            errorDiv.innerHTML = '<div class="message-header">System</div><div class="message-content">Sorry, there was an error updating the system message. Please try again.</div>';
+            
+            chatMessages.appendChild(errorDiv);
+            scrollToBottom();
+        });
+    }
+
+    // Event Listeners - Add more robust click handling
+    if (sendBtn) {
+        console.log('Adding event listener to send button');
+        sendBtn.onclick = sendMessage;
+        sendBtn.addEventListener('click', function(e) {
+            console.log('Send button clicked (event listener)');
+            sendMessage();
         });
     }
     
-    // 格式化日期
-    function formatDate(dateString) {
-        if (!dateString) return '';
+    if (chatInput) {
+        chatInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                console.log('Enter key pressed');
+                e.preventDefault();
+                sendMessage();
+            }
+        });
         
-        const date = new Date(dateString);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffSecs = Math.floor(diffMs / 1000);
-        const diffMins = Math.floor(diffSecs / 60);
-        const diffHours = Math.floor(diffMins / 60);
-        const diffDays = Math.floor(diffHours / 24);
-        
-        if (diffSecs < 60) return '刚刚';
-        if (diffMins < 60) return `${diffMins}分钟前`;
-        if (diffHours < 24) return `${diffHours}小时前`;
-        if (diffDays < 7) return `${diffDays}天前`;
-        
-        return date.toLocaleDateString();
+        // Auto-resize textarea as user types
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
     }
     
-    // 加载设置
-    function loadSettings() {
-        // 深色模式
-        const darkMode = localStorage.getItem('darkMode') === 'true';
-        darkModeToggle.checked = darkMode;
-        document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
-        
-        // 其他设置...
+    if (newChatBtn) {
+        console.log('Adding event listener to new chat button');
+        newChatBtn.onclick = startNewChat;
+        newChatBtn.addEventListener('click', function(e) {
+            console.log('New chat button clicked (event listener)');
+            startNewChat();
+        });
     }
     
-    // 保存设置
-    function saveSettings() {
-        // 已在各个控件的事件监听器中处理
-        settingsModal.classList.remove('open');
+    // Settings modal
+    if (settingsBtn) {
+        console.log('Adding event listener to settings button');
+        settingsBtn.onclick = function() {
+            console.log('Settings button clicked');
+            settingsModal.style.display = 'block';
+        };
+        
+        settingsBtn.addEventListener('click', function(e) {
+            console.log('Settings button clicked (event listener)');
+            settingsModal.style.display = 'block';
+        });
     }
+    
+    if (closeModal) {
+        closeModal.addEventListener('click', function() {
+            console.log('Close modal clicked');
+            settingsModal.style.display = 'none';
+        });
+    }
+    
+    window.addEventListener('click', function(e) {
+        if (e.target === settingsModal) {
+            console.log('Clicked outside modal');
+            settingsModal.style.display = 'none';
+        }
+    });
+    
+    if (saveSettingsBtn) {
+        console.log('Adding event listener to save settings button');
+        saveSettingsBtn.onclick = updateSystemMessage;
+        saveSettingsBtn.addEventListener('click', function(e) {
+            console.log('Save settings button clicked (event listener)');
+            updateSystemMessage();
+        });
+    }
+
+    // Add a simple test button to verify JavaScript is working
+    const testButton = document.createElement('button');
+    testButton.textContent = 'Test JavaScript';
+    testButton.style.position = 'fixed';
+    testButton.style.bottom = '10px';
+    testButton.style.right = '10px';
+    testButton.style.zIndex = '9999';
+    testButton.style.padding = '10px';
+    testButton.style.backgroundColor = '#10a37f';
+    testButton.style.color = 'white';
+    testButton.style.border = 'none';
+    testButton.style.borderRadius = '5px';
+    testButton.style.cursor = 'pointer';
+    
+    testButton.addEventListener('click', function() {
+        alert('JavaScript is working! This is a test button.');
+    });
+    
+    document.body.appendChild(testButton);
+    
+    console.log('All event listeners attached');
 });
+
+// Alternative approach: Add event listeners when window loads
+window.onload = function() {
+    console.log('Window loaded');
+    
+    // Add direct onclick handlers as a fallback
+    const sendBtn = document.getElementById('send-btn');
+    if (sendBtn) {
+        sendBtn.onclick = function() {
+            console.log('Send button clicked (window.onload)');
+            const chatInput = document.getElementById('chat-input');
+            if (!chatInput) return;
+            
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            alert('Send button clicked: ' + message);
+        };
+    }
+    
+    const newChatBtn = document.getElementById('new-chat-btn');
+    if (newChatBtn) {
+        newChatBtn.onclick = function() {
+            console.log('New chat button clicked (window.onload)');
+            alert('New chat button clicked');
+        };
+    }
+    
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) {
+        settingsBtn.onclick = function() {
+            console.log('Settings button clicked (window.onload)');
+            const settingsModal = document.getElementById('settings-modal');
+            if (settingsModal) {
+                settingsModal.style.display = 'block';
+            }
+        };
+    }
+};

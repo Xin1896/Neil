@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek Chat</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background-color: #1e88e5;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .chat-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background-color: #f0f0f0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #ddd;
+        }
+        
+        .new-chat-btn {
+            padding: 10px 15px;
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .chat-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .chat-item:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            overflow: hidden;
+        }
+        
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            display: flex;
+        }
+        
+        .user-message {
+            justify-content: flex-end;
+        }
+        
+        .ai-message {
+            justify-content: flex-start;
+        }
+        
+        .message-content {
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 70%;
+        }
+        
+        .user-message .message-content {
+            background-color: #1e88e5;
+            color: white;
+        }
+        
+        .ai-message .message-content {
+            background-color: #f1f1f1;
+            color: #333;
+        }
+        
+        .input-area {
+            display: flex;
+            padding: 10px;
+            background-color: #fff;
+            border-top: 1px solid #ddd;
+            align-items: center;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: none;
+            height: 20px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .send-btn {
+            padding: 12px 20px;
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .chat-container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .message-content {
+                max-width: 85%;
+            }
+        }
+        
+        .chat-settings {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #e8e8e8;
+            border-radius: 4px;
+        }
+        
+        .model-select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        
+        .setting-item {
+            margin-bottom: 10px;
+        }
+        
+        .setting-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .api-key-input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-bottom: 10px;
+        }
+        
+        /* Code highlight styles */
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        
+        code {
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Markdown styles */
+        .markdown {
+            line-height: 1.6;
+        }
+        
+        .markdown h1, .markdown h2, .markdown h3 {
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .markdown ul, .markdown ol {
+            margin-left: 20px;
+        }
+        
+        .markdown p {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>DeepSeek Chat</h1>
+    </div>
+    
+    <div class="chat-container">
+        <div class="sidebar">
+            <button class="new-chat-btn" id="new-chat-btn">新会话</button>
+            
+            <div class="chat-settings">
+                <div class="setting-item">
+                    <label class="setting-label">DeepSeek API Key</label>
+                    <input type="password" class="api-key-input" id="api-key-input" placeholder="输入您的 API Key">
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">选择模型</label>
+                    <select class="model-select" id="model-select">
+                        <option value="deepseek-chat">DeepSeek Chat</option>
+                        <option value="deepseek-coder">DeepSeek Coder</option>
+                    </select>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">温度 (Temperature)</label>
+                    <input type="range" min="0" max="1" step="0.1" value="0.7" id="temperature-slider">
+                    <span id="temperature-value">0.7</span>
+                </div>
+                
+                <div class="setting-item">
+                    <label class="setting-label">最大长度 (Max Length)</label>
+                    <input type="number" min="10" max="4000" value="2000" id="max-length-input">
+                </div>
+            </div>
+            
+            <div class="chat-history" id="chat-history">
+                <!-- 聊天历史会在这里动态添加 -->
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="messages" id="messages">
+                <!-- 消息会在这里动态添加 -->
+                <div class="message ai-message">
+                    <div class="message-content">
+                        <p>你好！我是基于 DeepSeek 的 AI 助手。有什么我可以帮助你的吗？</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="input-area">
+                <textarea class="message-input" id="message-input" placeholder="输入消息..." rows="1"></textarea>
+                <button class="send-btn" id="send-btn">发送</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 引入 Markdown 解析库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    
+    <!-- 引入语法高亮库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/github.min.css">
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 元素引用
+            const messageInput = document.getElementById('message-input');
+            const sendBtn = document.getElementById('send-btn');
+            const messagesContainer = document.getElementById('messages');
+            const newChatBtn = document.getElementById('new-chat-btn');
+            const chatHistory = document.getElementById('chat-history');
+            const apiKeyInput = document.getElementById('api-key-input');
+            const modelSelect = document.getElementById('model-select');
+            const temperatureSlider = document.getElementById('temperature-slider');
+            const temperatureValue = document.getElementById('temperature-value');
+            const maxLengthInput = document.getElementById('max-length-input');
+            
+            // 从本地存储加载设置
+            loadSettings();
+            
+            // 加载聊天历史
+            loadChatHistory();
+            
+            // 初始化当前会话
+            let currentChatId = localStorage.getItem('currentChatId') || generateChatId();
+            let conversations = JSON.parse(localStorage.getItem('conversations')) || {};
+            
+            if (!conversations[currentChatId]) {
+                conversations[currentChatId] = {
+                    title: '新会话',
+                    messages: [
+                        {
+                            role: 'assistant',
+                            content: '你好！我是基于 DeepSeek 的 AI 助手。有什么我可以帮助你的吗？'
+                        }
+                    ],
+                    timestamp: Date.now()
+                };
+                saveConversations();
+            }
+            
+            // 添加事件监听器
+            sendBtn.addEventListener('click', sendMessage);
+            messageInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            
+            // 自动调整输入框高度
+            messageInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+            
+            newChatBtn.addEventListener('click', createNewChat);
+            
+            // 保存设置变化
+            apiKeyInput.addEventListener('change', saveSettings);
+            modelSelect.addEventListener('change', saveSettings);
+            temperatureSlider.addEventListener('input', function() {
+                temperatureValue.textContent = this.value;
+                saveSettings();
+            });
+            maxLengthInput.addEventListener('change', saveSettings);
+            
+            // 加载当前会话
+            loadCurrentChat();
+            
+            // 函数定义
+            function loadSettings() {
+                const settings = JSON.parse(localStorage.getItem('chatSettings')) || {};
+                apiKeyInput.value = settings.apiKey || '';
+                modelSelect.value = settings.model || 'deepseek-chat';
+                temperatureSlider.value = settings.temperature || 0.7;
+                temperatureValue.textContent = temperatureSlider.value;
+                maxLengthInput.value = settings.maxLength || 2000;
+            }
+            
+            function saveSettings() {
+                const settings = {
+                    apiKey: apiKeyInput.value,
+                    model: modelSelect.value,
+                    temperature: temperatureSlider.value,
+                    maxLength: maxLengthInput.value
+                };
+                localStorage.setItem('chatSettings', JSON.stringify(settings));
+            }
+            
+            function loadChatHistory() {
+                chatHistory.innerHTML = '';
+                const conversations = JSON.parse(localStorage.getItem('conversations')) || {};
+                
+                Object.keys(conversations).sort((a, b) => {
+                    return conversations[b].timestamp - conversations[a].timestamp;
+                }).forEach(chatId => {
+                    const chat = conversations[chatId];
+                    const chatItem = document.createElement('div');
+                    chatItem.className = 'chat-item';
+                    chatItem.textContent = chat.title;
+                    chatItem.dataset.chatId = chatId;
+                    
+                    chatItem.addEventListener('click', function() {
+                        loadChat(chatId);
+                    });
+                    
+                    chatHistory.appendChild(chatItem);
+                });
+            }
+            
+            function loadChat(chatId) {
+                currentChatId = chatId;
+                localStorage.setItem('currentChatId', chatId);
+                loadCurrentChat();
+            }
+            
+            function loadCurrentChat() {
+                messagesContainer.innerHTML = '';
+                const chat = conversations[currentChatId];
+                
+                if (chat && chat.messages) {
+                    chat.messages.forEach(msg => {
+                        appendMessage(msg.role, msg.content);
+                    });
+                }
+                
+                // 滚动到底部
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            function createNewChat() {
+                currentChatId = generateChatId();
+                localStorage.setItem('currentChatId', currentChatId);
+                
+                conversations[currentChatId] = {
+                    title: '新会话',
+                    messages: [
+                        {
+                            role: 'assistant',
+                            content: '你好！我是基于 DeepSeek 的 AI 助手。有什么我可以帮助你的吗？'
+                        }
+                    ],
+                    timestamp: Date.now()
+                };
+                
+                saveConversations();
+                loadChatHistory();
+                loadCurrentChat();
+            }
+            
+            async function sendMessage() {
+                const message = messageInput.value.trim();
+                if (!message) return;
+                
+                // 清空输入框
+                messageInput.value = '';
+                messageInput.style.height = 'auto';
+                
+                // 添加用户消息到界面
+                appendMessage('user', message);
+                
+                // 保存用户消息到会话
+                conversations[currentChatId].messages.push({
+                    role: 'user',
+                    content: message
+                });
+                
+                // 更新会话标题（使用用户消息的前20个字符）
+                if (conversations[currentChatId].messages.length === 2) { // 只有初始消息和第一个用户消息
+                    const title = message.substring(0, 20) + (message.length > 20 ? '...' : '');
+                    conversations[currentChatId].title = title;
+                }
+                
+                // 更新时间戳
+                conversations[currentChatId].timestamp = Date.now();
+                saveConversations();
+                loadChatHistory();
+                
+                // 添加等待消息
+                const pendingMessageElement = appendPendingMessage();
+                
+                try {
+                    // 获取设置
+                    const settings = JSON.parse(localStorage.getItem('chatSettings')) || {};
+                    const apiKey = settings.apiKey;
+                    
+                    if (!apiKey) {
+                        throw new Error("请输入有效的 DeepSeek API Key");
+                    }
+                    
+                    // 准备请求消息历史
+                    const messages = conversations[currentChatId].messages.map(msg => ({
+                        role: msg.role,
+                        content: msg.content
+                    }));
+                    
+                    // 发送请求到 DeepSeek API
+                    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: modelSelect.value,
+                            messages: messages,
+                            temperature: parseFloat(temperatureSlider.value),
+                            max_tokens: parseInt(maxLengthInput.value)
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error?.message || "API 请求失败");
+                    }
+                    
+                    const data = await response.json();
+                    const aiResponse = data.choices[0].message.content;
+                    
+                    // 删除等待消息
+                    messagesContainer.removeChild(pendingMessageElement);
+                    
+                    // 添加 AI 回复到界面
+                    appendMessage('assistant', aiResponse);
+                    
+                    // 保存 AI 回复到会话
+                    conversations[currentChatId].messages.push({
+                        role: 'assistant',
+                        content: aiResponse
+                    });
+                    
+                    saveConversations();
+                    
+                } catch (error) {
+                    // 删除等待消息
+                    messagesContainer.removeChild(pendingMessageElement);
+                    
+                    // 显示错误消息
+                    appendMessage('assistant', `错误: ${error.message}`);
+                    
+                    // 保存错误消息到会话
+                    conversations[currentChatId].messages.push({
+                        role: 'assistant',
+                        content: `错误: ${error.message}`
+                    });
+                    
+                    saveConversations();
+                }
+                
+                // 滚动到底部
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+            
+            function appendMessage(role, content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role === 'user' ? 'user-message' : 'ai-message'}`;
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content markdown';
+                
+                // 使用 marked 解析 Markdown
+                contentDiv.innerHTML = marked.parse(content);
+                
+                // 应用语法高亮
+                contentDiv.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+                
+                messageDiv.appendChild(contentDiv);
+                messagesContainer.appendChild(messageDiv);
+                
+                // 滚动到底部
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                return messageDiv;
+            }
+            
+            function appendPendingMessage() {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message ai-message';
+                
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'message-content';
+                contentDiv.textContent = '正在思考...';
+                
+                messageDiv.appendChild(contentDiv);
+                messagesContainer.appendChild(messageDiv);
+                
+                // 滚动到底部
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                return messageDiv;
+            }
+            
+            function saveConversations() {
+                localStorage.setItem('conversations', JSON.stringify(conversations));
+            }
+            
+            function generateChatId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+            }
+        });
+    </script>
+</body>
+</html>

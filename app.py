@@ -1,192 +1,155 @@
-# app.py
+import os
 from flask import Flask, render_template, request, jsonify, session
 import requests
-import os
 import uuid
-from datetime import datetime
 import json
-from dotenv import load_dotenv
+from datetime import datetime
+import markdown
 
-# 加载 .env 文件
-load_dotenv()
-
+# Initialize Flask app
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'neil-secret-key-change-in-production')
+app.secret_key = os.urandom(24)  # For session management
 
-# DeepSeek API配置
-DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
-DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"
+# Deepseek API configuration
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "your_deepseek_api_key_here")
+DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions"  # Update with the actual Deepseek API endpoint
 
-# 确保存储目录存在
-os.makedirs('data/conversations', exist_ok=True)
+# Default system message for chat context
+DEFAULT_SYSTEM_MESSAGE = """You are a helpful assistant created by Deepseek."""
 
-@app.route('/')
-def index():
-    """渲染主页"""
-    # 检查会话中是否有user_id，如果没有则创建一个
-    if 'user_id' not in session:
-        session['user_id'] = str(uuid.uuid4())
+def generate_response(messages):
+    """
+    Generate a response from the Deepseek API based on the conversation history.
     
-    return render_template('index.html')
-
-@app.route('/api/chat', methods=['POST'])
-def chat():
-    """处理聊天请求"""
-    data = request.json
-    user_message = data.get('message', '')
-    conversation_id = data.get('conversation_id')
-    
-    # 如果没有conversation_id，创建一个新的
-    if not conversation_id:
-        conversation_id = str(uuid.uuid4())
-    
-    # 获取历史消息记录
-    conversation = get_conversation(conversation_id)
-    
-    # 将用户消息添加到历史记录
-    conversation['messages'].append({
-        'role': 'user',
-        'content': user_message,
-        'timestamp': datetime.now().isoformat()
-    })
-    
-    # 只保留最近的消息以避免超过DeepSeek API的限制
-    recent_messages = conversation['messages'][-10:]
-    
-    # 准备DeepSeek API请求
-    deepseek_messages = [
-        {'role': message['role'], 'content': message['content']} 
-        for message in recent_messages
-    ]
-    
+    Args:
+        messages (list): List of message dictionaries with role and content keys
+        
+    Returns:
+        str: The generated response text
+    """
     headers = {
-        'Authorization': f'Bearer {DEEPSEEK_API_KEY}',
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
     }
     
-    payload = {
-        'model': 'deepseek-chat',
-        'messages': deepseek_messages,
-        'temperature': 0.7,
-        'max_tokens': 1000
+    data = {
+        "model": "deepseek-chat",  # Update with the appropriate Deepseek model
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 2000
     }
     
     try:
-        # 发送请求到DeepSeek API
-        response = requests.post(DEEPSEEK_API_URL, headers=headers, json=payload)
-        response.raise_for_status()
+        response = requests.post(DEEPSEEK_API_URL, headers=headers, json=data)
+        response.raise_for_status()  # Raise an exception for HTTP errors
         
-        # 解析响应
         result = response.json()
-        assistant_message = result['choices'][0]['message']['content']
-        
-        # 将AI回复添加到历史记录
-        conversation['messages'].append({
-            'role': 'assistant',
-            'content': assistant_message,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        # 如果是新的对话，设置标题
-        if len(conversation['messages']) == 2:  # 首次交互（用户+AI）
-            # 设置对话标题为用户第一条消息（截断过长的消息）
-            if len(user_message) > 30:
-                conversation['title'] = user_message[:27] + '...'
-            else:
-                conversation['title'] = user_message
-        
-        # 保存对话
-        save_conversation(conversation_id, conversation)
-        
-        return jsonify({
-            'id': conversation_id,
-            'message': assistant_message,
-            'title': conversation['title']
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return result["choices"][0]["message"]["content"]
+    except requests.exceptions.RequestException as e:
+        print(f"Error calling Deepseek API: {e}")
+        return f"Sorry, I encountered an error: {str(e)}"
 
-@app.route('/api/conversations', methods=['GET'])
-def get_conversations():
-    """获取用户的所有对话"""
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify([])
+def get_chat_history():
+    """
+    Get the chat history from the session or initialize a new one.
     
-    conversations = []
-    conversation_dir = f'data/conversations/{user_id}'
+    Returns:
+        list: List of message dictionaries
+    """
+    if "chat_id" not in session:
+        session["chat_id"] = str(uuid.uuid4())
     
-    if os.path.exists(conversation_dir):
-        for filename in os.listdir(conversation_dir):
-            if filename.endswith('.json'):
-                conversation_id = filename[:-5]  # 移除.json后缀
-                with open(f'{conversation_dir}/{filename}', 'r') as f:
-                    conversation = json.load(f)
-                    conversations.append({
-                        'id': conversation_id,
-                        'title': conversation.get('title', 'New Conversation'),
-                        'timestamp': conversation.get('timestamp', '')
-                    })
+    if "messages" not in session:
+        session["messages"] = [
+            {"role": "system", "content": DEFAULT_SYSTEM_MESSAGE}
+        ]
     
-    # 按时间戳排序，最新的在前
-    conversations.sort(key=lambda x: x['timestamp'], reverse=True)
-    return jsonify(conversations)
+    return session["messages"]
 
-@app.route('/api/conversations/<conversation_id>', methods=['GET'])
-def get_conversation_api(conversation_id):
-    """获取特定对话的所有消息"""
-    conversation = get_conversation(conversation_id)
-    return jsonify(conversation)
+def save_chat_history(messages):
+    """
+    Save the chat history to the session.
+    
+    Args:
+        messages (list): List of message dictionaries
+    """
+    session["messages"] = messages
 
-@app.route('/api/conversations/<conversation_id>', methods=['DELETE'])
-def delete_conversation(conversation_id):
-    """删除特定对话"""
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'Unauthorized'}), 401
-    
-    file_path = f'data/conversations/{user_id}/{conversation_id}.json'
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        return jsonify({'success': True})
-    
-    return jsonify({'error': 'Conversation not found'}), 404
+@app.route("/")
+def index():
+    """Render the main chat interface."""
+    return render_template("index.html")
 
-def get_conversation(conversation_id):
-    """从文件中获取对话，如果不存在则创建一个新的"""
-    user_id = session.get('user_id')
-    if not user_id:
-        return {'messages': [], 'title': 'New Conversation', 'timestamp': datetime.now().isoformat()}
+@app.route("/api/chat", methods=["POST"])
+def chat():
+    """API endpoint for chat interactions."""
+    data = request.json
+    user_message = data.get("message", "").strip()
     
-    os.makedirs(f'data/conversations/{user_id}', exist_ok=True)
-    file_path = f'data/conversations/{user_id}/{conversation_id}.json'
+    if not user_message:
+        return jsonify({"error": "Empty message"}), 400
     
-    if os.path.exists(file_path):
-        with open(file_path, 'r') as f:
-            return json.load(f)
+    # Get chat history
+    messages = get_chat_history()
+    
+    # Add user message to history
+    messages.append({"role": "user", "content": user_message})
+    
+    # Generate response
+    assistant_response = generate_response(messages)
+    
+    # Add assistant response to history
+    messages.append({"role": "assistant", "content": assistant_response})
+    
+    # Save updated history
+    save_chat_history(messages)
+    
+    # Convert markdown to HTML for display
+    html_response = markdown.markdown(assistant_response)
+    
+    return jsonify({
+        "response": assistant_response,
+        "html_response": html_response,
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route("/api/new_chat", methods=["POST"])
+def new_chat():
+    """Start a new chat session."""
+    session.pop("messages", None)
+    session["chat_id"] = str(uuid.uuid4())
+    return jsonify({"success": True, "chat_id": session["chat_id"]})
+
+@app.route("/api/get_history", methods=["GET"])
+def get_history():
+    """Get the current chat history."""
+    messages = get_chat_history()
+    # Filter out system messages for the client
+    client_messages = [msg for msg in messages if msg["role"] != "system"]
+    return jsonify({"messages": client_messages})
+
+@app.route("/api/update_system_message", methods=["POST"])
+def update_system_message():
+    """Update the system message for the current chat."""
+    data = request.json
+    new_system_message = data.get("system_message", "").strip()
+    
+    if not new_system_message:
+        return jsonify({"error": "Empty system message"}), 400
+    
+    messages = get_chat_history()
+    
+    # Find and update system message
+    for i, msg in enumerate(messages):
+        if msg["role"] == "system":
+            messages[i]["content"] = new_system_message
+            break
     else:
-        return {
-            'messages': [],
-            'title': 'New Conversation',
-            'timestamp': datetime.now().isoformat()
-        }
-
-def save_conversation(conversation_id, conversation):
-    """保存对话到文件"""
-    user_id = session.get('user_id')
-    if not user_id:
-        return
+        # If no system message exists, add one
+        messages.insert(0, {"role": "system", "content": new_system_message})
     
-    os.makedirs(f'data/conversations/{user_id}', exist_ok=True)
-    conversation['timestamp'] = datetime.now().isoformat()
-    
-    with open(f'data/conversations/{user_id}/{conversation_id}.json', 'w') as f:
-        json.dump(conversation, f, indent=2)
+    save_chat_history(messages)
+    return jsonify({"success": True})
 
-# 在 app.py 中使用环境变量
-port = int(os.environ.get('PORT', 5000))
-debug_mode = os.environ.get('FLASK_ENV') == 'development'
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=port, debug=debug_mode)
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
