@@ -342,7 +342,10 @@
             color: var(--text-main);
             border: 1px solid rgba(83, 224, 208, 0.2);
             border-bottom-left-radius: 4px;
-            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background-color: rgba(30, 40, 71, 0.7);
+            -webkit-backdrop-filter: blur(10px); /* Safari */
+            backdrop-filter: blur(10px); /* Firefox fallback */
         }
         
         .ai-message .message-bubble::before {
@@ -820,7 +823,7 @@
                 
                 <div class="setting-item">
                     <label class="setting-label">选择模型</label>
-                    <select class="model-select" id="model-select">
+                    <select class="model-select" id="model-select" title="选择模型">
                         <option value="neil-chat">Neil Chat</option>
                         <option value="neil-coder">Neil Coder</option>
                     </select>
@@ -829,14 +832,14 @@
                 <div class="setting-item">
                     <label class="setting-label">温度 (Temperature)</label>
                     <div class="slider-container">
-                        <input type="range" min="0" max="1" step="0.1" value="0.7" id="temperature-slider">
+                        <input type="range" min="0" max="1" step="0.1" value="0.7" id="temperature-slider" title="Temperature Slider">
                         <span id="temperature-value">0.7</span>
                     </div>
                 </div>
                 
                 <div class="setting-item">
                     <label class="setting-label">最大响应长度</label>
-                    <input type="number" min="10" max="4000" value="2000" id="max-length-input" class="api-key-input">
+                    <input type="number" min="10" max="4000" value="2000" id="max-length-input" class="api-key-input" title="最大响应长度" placeholder="输入最大响应长度">
                 </div>
             </div>
         </div>
