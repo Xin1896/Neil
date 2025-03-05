@@ -846,6 +846,308 @@
     </div>
     
     <!-- 引入 Markdown 解析库 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js">
+        document.addEventListener('DOMContentLoaded', function() {
+    // 获取DOM元素
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-btn');
+    const messagesContainer = document.getElementById('messages');
+    const settingsButton = document.getElementById('settings-btn');
+    const settingsPanel = document.getElementById('settings-panel');
+    const closeSettingsButton = document.getElementById('close-settings');
+    const newChatButton = document.getElementById('new-chat-btn');
+    const chatHistory = document.getElementById('chat-history');
+    const toggleSidebarButton = document.getElementById('toggle-sidebar');
+    const sidebar = document.getElementById('sidebar');
+    const promptButtons = document.querySelectorAll('.prompt-btn');
+    const temperatureSlider = document.getElementById('temperature-slider');
+    const temperatureValue = document.getElementById('temperature-value');
+    
+    // 消息历史记录
+    let conversations = [];
+    let currentConversationId = generateId();
+    
+    // 初始化应用
+    initializeApp();
+    
+    // 发送消息
+    function sendMessage() {
+        const messageText = messageInput.value.trim();
+        if (!messageText) return;
+        
+        // 添加用户消息到界面
+        addMessageToUI('user', messageText);
+        
+        // 清空输入框
+        messageInput.value = '';
+        
+        // 显示AI正在输入的指示
+        showTypingIndicator();
+        
+        // 模拟AI响应 (这里应该替换为实际的API调用)
+        setTimeout(() => {
+            // 移除输入指示
+            removeTypingIndicator();
+            
+            // 添加AI响应
+            const aiResponse = generateAIResponse(messageText);
+            addMessageToUI('ai', aiResponse);
+            
+            // 保存到当前会话
+            saveMessageToCurrentConversation({
+                role: 'user',
+                content: messageText
+            });
+            
+            saveMessageToCurrentConversation({
+                role: 'assistant',
+                content: aiResponse
+            });
+            
+            // 如果这是新会话的第一条消息，添加到历史记录
+            if (!document.querySelector(`[data-conversation-id="${currentConversationId}"]`)) {
+                addConversationToHistory(currentConversationId, messageText);
+            }
+        }, 1000 + Math.random() * 2000); // 随机延迟，模拟思考时间
+    }
+    
+    // 显示AI正在输入的指示
+    function showTypingIndicator() {
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'message ai-message';
+        typingIndicator.id = 'typing-indicator';
+        typingIndicator.innerHTML = `
+            <div class="message-bubble typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        `;
+        messagesContainer.appendChild(typingIndicator);
+        scrollToBottom();
+    }
+    
+    // 移除输入指示
+    function removeTypingIndicator() {
+        const indicator = document.getElementById('typing-indicator');
+        if (indicator) indicator.remove();
+    }
+    
+    // 添加消息到UI
+    function addMessageToUI(sender, content) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        
+        // 使用marked库解析markdown
+        const parsedContent = marked.parse(content);
+        
+        messageDiv.innerHTML = `
+            <div class="message-bubble markdown">
+                ${parsedContent}
+            </div>
+        `;
+        
+        messagesContainer.appendChild(messageDiv);
+        scrollToBottom();
+    }
+    
+    // 模拟AI响应生成 (实际项目中应替换为API调用)
+    function generateAIResponse(message) {
+        // 简单响应逻辑，实际项目中应使用API
+        const responses = [
+            "我理解你的问题。让我思考一下...\n\n根据我的分析，这个问题涉及到多个方面的考量。",
+            "这是个很有趣的问题！从宇宙学的角度来看，我们可以这样思考...",
+            "根据现代科学理论，我们可以这样解释这个现象...\n\n不过需要注意的是，科学总是在不断发展的。",
+            "从哲学角度看，这个问题引发了许多深思...\n\n你有没有考虑过另一个视角？",
+            "这让我想起了爱因斯坦的一个著名观点。他认为...\n\n这与你的问题有什么关联呢？",
+            "如果我们从量子力学的角度分析：\n\n1. 首先考虑波粒二象性\n2. 然后应用测不准原理\n3. 最后通过叠加态解释",
+            "星际旅行面临的最大挑战是光速限制。目前人类最快的飞行器速度约为...\n\n要到达最近的恒星，需要数万年时间。",
+            "黑洞的形成通常来自大质量恒星死亡后的引力坍缩...\n\n在事件视界内，已知物理定律可能不再适用。"
+        ];
+        
+        return responses[Math.floor(Math.random() * responses.length)];
+    }
+    
+    // 滚动到消息容器底部
+    function scrollToBottom() {
+        const messagesWrapper = document.querySelector('.messages-wrapper');
+        messagesWrapper.scrollTop = messagesWrapper.scrollHeight;
+    }
+    
+    // 新建会话
+    function createNewChat() {
+        // 清空消息区域，只保留初始欢迎消息
+        messagesContainer.innerHTML = `
+            <div class="message ai-message">
+                <div class="message-bubble markdown">
+                    <p>你好！我是 Neil Chat AI 助手。我可以帮助你探索宇宙的奥秘，解答你的问题，或者进行有趣的对话。有什么我可以帮助你的吗？</p>
+                </div>
+            </div>
+        `;
+        
+        // 创建新会话ID
+        currentConversationId = generateId();
+    }
+    
+    // 切换到已有会话
+    function switchConversation(conversationId) {
+        if (currentConversationId === conversationId) return;
+        
+        // 更新当前会话ID
+        currentConversationId = conversationId;
+        
+        // 更新活跃会话视觉提示
+        document.querySelectorAll('.chat-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        const selectedChat = document.querySelector(`[data-conversation-id="${conversationId}"]`);
+        if (selectedChat) {
+            selectedChat.classList.add('active');
+        }
+        
+        // 清空并填充消息区域
+        messagesContainer.innerHTML = '';
+        
+        // 查找并显示会话消息
+        const conversation = conversations.find(conv => conv.id === conversationId);
+        if (conversation && conversation.messages) {
+            conversation.messages.forEach(msg => {
+                addMessageToUI(msg.role === 'user' ? 'user' : 'ai', msg.content);
+            });
+        }
+        
+        // 在移动设备上，切换会话后关闭侧边栏
+        if (window.innerWidth <= 768) {
+            sidebar.classList.remove('active');
+        }
+    }
+    
+    // 将会话添加到历史记录UI
+    function addConversationToHistory(conversationId, firstMessage) {
+        // 创建历史记录项
+        const historyItem = document.createElement('div');
+        historyItem.className = 'chat-item active';
+        historyItem.setAttribute('data-conversation-id', conversationId);
+        
+        // 使用消息的前20个字符作为标题
+        const chatTitle = firstMessage.length > 20 
+            ? firstMessage.substring(0, 20) + '...' 
+            : firstMessage;
+        
+        historyItem.innerHTML = `
+            <i class="fas fa-message"></i>
+            <span>${chatTitle}</span>
+        `;
+        
+        // 添加到历史记录顶部
+        chatHistory.insertBefore(historyItem, chatHistory.firstChild);
+        
+        // 移除其他项的活跃状态
+        document.querySelectorAll('.chat-item').forEach(item => {
+            if (item !== historyItem) {
+                item.classList.remove('active');
+            }
+        });
+        
+        // 添加点击事件监听器
+        historyItem.addEventListener('click', function() {
+            switchConversation(conversationId);
+        });
+    }
+    
+    // 保存消息到当前会话
+    function saveMessageToCurrentConversation(message) {
+        // 查找当前会话
+        let conversation = conversations.find(conv => conv.id === currentConversationId);
+        
+        // 如果会话不存在，创建新会话
+        if (!conversation) {
+            conversation = {
+                id: currentConversationId,
+                messages: []
+            };
+            conversations.push(conversation);
+        }
+        
+        // 添加消息到会话
+        conversation.messages.push(message);
+        
+        // 这里可以添加持久化存储，如localStorage
+        localStorage.setItem('neil-chat-conversations', JSON.stringify(conversations));
+    }
+    
+    // 生成唯一ID
+    function generateId() {
+        return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+    
+    // 调整输入框高度
+    function adjustTextareaHeight() {
+        messageInput.style.height = 'auto';
+        messageInput.style.height = (messageInput.scrollHeight) + 'px';
+    }
+    
+    // 初始化应用
+    function initializeApp() {
+        // 加载保存的会话
+        const savedConversations = localStorage.getItem('neil-chat-conversations');
+        if (savedConversations) {
+            conversations = JSON.parse(savedConversations);
+            
+            // 填充会话历史UI
+            conversations.forEach(conv => {
+                if (conv.messages && conv.messages.length > 0) {
+                    // 找到第一条用户消息
+                    const firstUserMessage = conv.messages.find(msg => msg.role === 'user');
+                    if (firstUserMessage) {
+                        addConversationToHistory(conv.id, firstUserMessage.content);
+                    }
+                }
+            });
+        }
+        
+        // 设置事件监听器
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        messageInput.addEventListener('input', adjustTextareaHeight);
+        
+        sendButton.addEventListener('click', sendMessage);
+        
+        newChatButton.addEventListener('click', createNewChat);
+        
+        settingsButton.addEventListener('click', function() {
+            settingsPanel.classList.add('active');
+        });
+        
+        closeSettingsButton.addEventListener('click', function() {
+            settingsPanel.classList.remove('active');
+        });
+        
+        toggleSidebarButton.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+        });
+        
+        // 快捷提示按钮事件
+        promptButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                messageInput.value = button.textContent;
+                adjustTextareaHeight();
+                messageInput.focus();
+            });
+        });
+        
+        // 温度滑块事件
+        temperatureSlider.addEventListener('input', function() {
+            temperatureValue.textContent = this.value;
+        });
+    }
+});
+    </script>
     
     <!-- 引入语法高
